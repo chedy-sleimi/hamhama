@@ -9,7 +9,6 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 public class HamhamaApplication {
 
     public static void main(String[] args) {
-        System.out.println("Hello!");
         SpringApplication.run(HamhamaApplication.class, args);
     }
 
