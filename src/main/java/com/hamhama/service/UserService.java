@@ -110,7 +110,87 @@ public class UserService  {
         // Retrieve liked recipes
         List<Recipe> likedRecipes = user.getLikedRecipes();
 
+        // Retrieve profile picture URL
+        String profilePictureUrl = user.getProfilePictureUrl();
+
+        // Retrieve privacy setting
+        Boolean isPrivate = user.getIsPrivate();
+
         // Create and return the UserProfile
-        return new UserProfile(user.getUsername(), user.getEmail(), followersCount, followingCount, likedRecipes);
+        return new UserProfile(
+                user.getUsername(),
+                user.getEmail(),
+                followersCount,
+                followingCount,
+                likedRecipes,
+                profilePictureUrl,
+                isPrivate // Add the privacy setting
+        );
+    }
+
+    // Add a method to update the profile picture URL
+    public void updateProfilePicture(Long userId, String profilePictureUrl) {
+        User user = findUserById(userId); // Find the user by ID
+        user.setProfilePictureUrl(profilePictureUrl); // Update the profile picture URL
+        userRepository.save(user); // Save the updated user
+    }
+    // Block a user
+    public void blockUser(Long userId, Long blockedUserId) {
+        if (userId.equals(blockedUserId)) {
+            throw new RuntimeException("You cannot block yourself"); // Prevent self-blocking
+        }
+
+        User user = findUserById(userId); // Find the user who is blocking
+        User blockedUser = findUserById(blockedUserId); // Find the user to be blocked
+
+        if (user.getBlockedUsers().contains(blockedUser)) { // New validation
+            throw new RuntimeException("User is already blocked"); // Prevent blocking someone who is already blocked
+        }
+
+        user.getBlockedUsers().add(blockedUser); // Add to the blocked list
+        userRepository.save(user); // Save the updated user
+    }
+    // Unblock a user
+    public void unblockUser(Long userId, Long blockedUserId) {
+        User user = findUserById(userId); // Find the user who is unblocking
+        User blockedUser = findUserById(blockedUserId); // Find the user to be unblocked
+
+        // Check if the user is blocked
+        if (!user.getBlockedUsers().contains(blockedUser)) {
+            throw new RuntimeException("User is not blocked"); // Prevent unblocking someone who isn't blocked
+        }
+
+        user.getBlockedUsers().remove(blockedUser); // Remove from the blocked list
+        userRepository.save(user); // Save the updated user
+    }
+    // Get blocked users
+    public List<User> getBlockedUsers(Long userId) {
+        return userRepository.findBlockedUsers(userId); // Fetch blocked users from the repository
+    }
+    // Update privacy setting
+    public void updatePrivacySetting(Long userId, Boolean isPrivate) {
+        User user = findUserById(userId); // Find the user
+        user.setIsPrivate(isPrivate); // Update the privacy setting
+        userRepository.save(user); // Save the updated user
+    }
+
+    // Fetch privacy setting
+    public Boolean getPrivacySetting(Long userId) {
+        User user = findUserById(userId); // Find the user
+        return user.getIsPrivate(); // Return the privacy setting
+    }
+
+    // Check if a profile is accessible to a given user
+    public boolean isProfileAccessible(Long profileUserId, Long requestingUserId) {
+        User profileUser = findUserById(profileUserId); // Find the profile user
+        User requestingUser = findUserById(requestingUserId); // Find the requesting user
+
+        // If the profile is public, it's accessible to everyone
+        if (!profileUser.getIsPrivate()) {
+            return true;
+        }
+
+        // If the profile is private, only the user themselves and their followers can access it
+        return profileUserId.equals(requestingUserId) || profileUser.getFollowers().contains(requestingUser);
     }
 }

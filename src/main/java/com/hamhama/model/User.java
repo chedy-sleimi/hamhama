@@ -25,6 +25,10 @@ public class User implements UserDetails { // Implement UserDetails for security
 
     private Boolean isAdmin = false;
 
+    private Boolean isPrivate = false; // Default to public profile
+
+    private String profilePictureUrl;
+
     @Enumerated(EnumType.STRING) // Store Role as String (USER or ADMIN)
     @ElementCollection(fetch = FetchType.EAGER) // Correct annotation for collection of enum values
     private Set<Role> roles = new HashSet<>(); // Roles stored as Set
@@ -54,6 +58,18 @@ public class User implements UserDetails { // Implement UserDetails for security
             inverseJoinColumns = @JoinColumn(name = "recipe_id")
     )
     private List<Recipe> likedRecipes = new ArrayList<>();
+
+    @JsonIgnore
+    @ManyToMany
+    @JoinTable(
+            name = "blocked_users", // New table to track blocked users
+            joinColumns = @JoinColumn(name = "user_id"), // The user who is blocking
+            inverseJoinColumns = @JoinColumn(name = "blocked_user_id") // The user being blocked
+    )
+    private List<User> blockedUsers = new ArrayList<>(); // List of users blocked by this user
+
+
+
 
     // ✅ Add Getter & Setter for Roles
     public Set<Role> getRoles() {
@@ -96,6 +112,34 @@ public class User implements UserDetails { // Implement UserDetails for security
     }
 
     // ✅ Standard Getters & Setters
+
+    // Add getter and setter for profilePictureUrl
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) {
+        this.profilePictureUrl = profilePictureUrl;
+    }
+
+    public List<User> getBlockedUsers() {
+        return blockedUsers;
+    }
+
+    public void setBlockedUsers(List<User> blockedUsers) {
+        this.blockedUsers = blockedUsers;
+    }
+
+    // Add getter and setter for isPrivate
+    public Boolean getIsPrivate() {
+        return isPrivate;
+    }
+
+    public void setIsPrivate(Boolean isPrivate) {
+        this.isPrivate = isPrivate;
+    }
+
+
     public Long getId() {
         return id;
     }

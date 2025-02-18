@@ -4,6 +4,7 @@ import com.hamhama.dto.UserProfile;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.User;
 import com.hamhama.service.UserService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -80,6 +81,96 @@ public class UserController {
     @GetMapping("/{id}/profile")
     public UserProfile getUserProfile(@PathVariable Long id) {
         return userService.getUserProfile(id); // Get the profile details from the service
+    }
+    // Add a new endpoint to update the profile picture
+    @PutMapping("/{id}/profile-picture")
+    public ResponseEntity<String> updateProfilePicture(
+            @PathVariable Long id,
+            @RequestParam String profilePictureUrl) {
+        try {
+            userService.updateProfilePicture(id, profilePictureUrl); // Call the service method
+            return ResponseEntity.ok("Profile picture updated successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage()); // Handle user not found
+        }
+    }
+
+    // Block a user
+    @PostMapping("/{userId}/block/{blockedUserId}")
+    public ResponseEntity<String> blockUser(
+            @PathVariable Long userId,
+            @PathVariable Long blockedUserId) {
+        try {
+            userService.blockUser(userId, blockedUserId); // Call the service method
+            return ResponseEntity.ok("User blocked successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage()); // Handle errors
+        }
+    }
+
+    // Unblock a user
+    @DeleteMapping("/{userId}/unblock/{blockedUserId}")
+    public ResponseEntity<String> unblockUser(
+            @PathVariable Long userId,
+            @PathVariable Long blockedUserId) {
+        try {
+            userService.unblockUser(userId, blockedUserId); // Call the service method
+            return ResponseEntity.ok("User unblocked successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage()); // Handle errors
+        }
+    }
+
+    // Get blocked users
+    @GetMapping("/{userId}/blocked-users")
+    public ResponseEntity<List<User>> getBlockedUsers(@PathVariable Long userId) {
+        try {
+            List<User> blockedUsers = userService.getBlockedUsers(userId); // Call the service method
+            return ResponseEntity.ok(blockedUsers); // Return the list of blocked users
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(null); // Handle errors
+        }
+    }
+    // Update privacy setting
+    @PutMapping("/{userId}/privacy")
+    public ResponseEntity<String> updatePrivacySetting(
+            @PathVariable Long userId,
+            @RequestParam Boolean isPrivate) {
+        try {
+            userService.updatePrivacySetting(userId, isPrivate); // Call the service method
+            return ResponseEntity.ok("Privacy setting updated successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage()); // Handle errors
+        }
+    }
+
+    // Fetch privacy setting
+    @GetMapping("/{userId}/privacy")
+    public ResponseEntity<Boolean> getPrivacySetting(@PathVariable Long userId) {
+        try {
+            Boolean isPrivate = userService.getPrivacySetting(userId); // Call the service method
+            return ResponseEntity.ok(isPrivate); // Return the privacy setting
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(null); // Handle errors
+        }
+    }
+
+    // Fetch profile (with privacy checks)
+    @GetMapping("/{profileUserId}/profile/{requestingUserId}")
+    public ResponseEntity<UserProfile> getProfile(
+            @PathVariable Long profileUserId,
+            @PathVariable Long requestingUserId) {
+        try {
+            // Check if the profile is accessible to the requesting user
+            if (!userService.isProfileAccessible(profileUserId, requestingUserId)) {
+                return ResponseEntity.status(403).body(null); // Return 403 Forbidden if access is denied
+            }
+
+            UserProfile profile = userService.getUserProfile(profileUserId); // Fetch the profile
+            return ResponseEntity.ok(profile); // Return the profile
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(null); // Handle errors
+        }
     }
 
 }

@@ -11,16 +11,38 @@ public class UserProfile {
     private int followersCount;
     private int followingCount;
     private List<Recipe> likedRecipes;
+    private String profilePictureUrl;
+    private Boolean isPrivate;
 
-    public UserProfile(String username, String email, int followersCount, int followingCount, List<Recipe> likedRecipes) {
+    public UserProfile(String username, String email, int followersCount, int followingCount, List<Recipe> likedRecipes, String profilePictureUrl, Boolean isPrivate) {
         this.username = username;
         this.email = email;
         this.followersCount = followersCount;
         this.followingCount = followingCount;
         this.likedRecipes = likedRecipes;
+        this.profilePictureUrl = profilePictureUrl;
+        this.isPrivate = isPrivate;
     }
 
     // Getters and Setters
+
+    // Add getter and setter for isPrivate
+    public Boolean getIsPrivate() {
+        return isPrivate;
+    }
+
+    public void setIsPrivate(Boolean isPrivate) {
+        this.isPrivate = isPrivate;
+    }
+
+
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) {
+        this.profilePictureUrl = profilePictureUrl;
+    }
     public String getUsername() {
         return username;
     }
