@@ -13,9 +13,13 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     List<Recipe> findByDescriptionContainingIgnoreCase(String description);
 
-    @Query("SELECT r FROM Recipe r JOIN r.ingredients i WHERE i.name LIKE %:ingredient%")
+    @Query("SELECT DISTINCT r FROM Recipe r " +
+            "JOIN r.recipeIngredients ri " +
+            "JOIN ri.ingredient i " +
+            "WHERE LOWER(i.name) LIKE LOWER(CONCAT('%', :ingredient, '%'))")
     List<Recipe> findByIngredientsNameContainingIgnoreCase(@Param("ingredient") String ingredient);
 
     List<Recipe> findByCategory(RecipeCategory category);
+
     List<Recipe> findByCategoryIn(List<RecipeCategory> categories);
 }

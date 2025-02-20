@@ -2,6 +2,7 @@ package com.hamhama.controller;
 
 import com.hamhama.model.Ingredient;
 import com.hamhama.service.IngredientService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,5 +40,11 @@ public class IngredientController {
     @DeleteMapping("/{id}")
     public void deleteIngredient(@PathVariable Long id) {
         ingredientService.deleteIngredient(id);
+    }
+
+    @GetMapping("/substitutes")
+    public ResponseEntity<List<String>> getSubstitutes(@RequestParam String ingredient) {
+        List<String> substitutes = ingredientService.getIngredientSubstitutes(ingredient);
+        return ResponseEntity.ok(substitutes);
     }
 }

@@ -22,35 +22,21 @@ public class Recipe {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @ManyToMany
-    @JoinTable(
-            name = "recipe_ingredients",
-            joinColumns = @JoinColumn(name = "recipe_id"),
-            inverseJoinColumns = @JoinColumn(name = "ingredient_id")
-    )
-    private List<Ingredient> ingredients;
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL)
+    private List<RecipeIngredient> recipeIngredients = new ArrayList<>();
 
     @ManyToMany(mappedBy = "likedRecipes")
     private List<User> likedByUsers = new ArrayList<>();
 
-    // New field for average rating
-    private double averageRating; // The average rating (this will be calculated based on ratings)
+    private double averageRating;
 
     @JsonManagedReference
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL)
-    private List<Rating> ratings; // A recipe can have multiple ratings
-
-    public List<Comment> getComments() {
-        return comments;
-    }
-
-    public void setComments(List<Comment> comments) {
-        this.comments = comments;
-    }
+    private List<Rating> ratings;
 
     @JsonManagedReference
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL)
-    private List<Comment> comments = new ArrayList<>(); // A recipe can have multiple comments
+    private List<Comment> comments = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     private RecipeCategory category;
@@ -120,11 +106,7 @@ public class Recipe {
         this.user = user;
     }
 
-    public List<Ingredient> getIngredients() {
-        return ingredients;
-    }
+    public List<RecipeIngredient> getRecipeIngredients() { return recipeIngredients; }
+    public void setRecipeIngredients(List<RecipeIngredient> recipeIngredients) { this.recipeIngredients = recipeIngredients; }
 
-    public void setIngredients(List<Ingredient> ingredients) {
-        this.ingredients = ingredients;
-    }
 }

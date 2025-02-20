@@ -6,6 +6,7 @@ import com.hamhama.model.User;
 import com.hamhama.repository.CommentRepository;
 import com.hamhama.repository.RecipeRepository;
 import com.hamhama.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,7 +15,9 @@ import java.util.List;
 public class CommentService {
 
     private final CommentRepository commentRepository;
+
     private final RecipeRepository recipeRepository;
+
     private final UserRepository userRepository;
 
     public CommentService(CommentRepository commentRepository, RecipeRepository recipeRepository, UserRepository userRepository) {

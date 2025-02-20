@@ -48,7 +48,7 @@ public class RecipeService {
             Recipe updatedRecipe = existingRecipe.get();
             updatedRecipe.setName(recipeDetails.getName());
             updatedRecipe.setDescription(recipeDetails.getDescription());
-            updatedRecipe.setIngredients(recipeDetails.getIngredients());
+            updatedRecipe.setRecipeIngredients(recipeDetails.getRecipeIngredients());
             updatedRecipe.setUser(recipeDetails.getUser());
             updatedRecipe.setCategory(recipeDetails.getCategory()); // Ensure category is updated
             return recipeRepository.save(updatedRecipe);
