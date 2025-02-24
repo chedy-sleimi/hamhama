@@ -41,10 +41,4 @@ public class IngredientController {
     public void deleteIngredient(@PathVariable Long id) {
         ingredientService.deleteIngredient(id);
     }
-
-    @GetMapping("/substitutes")
-    public ResponseEntity<List<String>> getSubstitutes(@RequestParam String ingredient) {
-        List<String> substitutes = ingredientService.getIngredientSubstitutes(ingredient);
-        return ResponseEntity.ok(substitutes);
-    }
 }

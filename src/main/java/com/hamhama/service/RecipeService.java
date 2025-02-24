@@ -1,5 +1,8 @@
 package com.hamhama.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hamhama.dto.IngredientDTO;
+import com.hamhama.dto.NutritionRequestDTO;
 import com.hamhama.dto.RecipeDTO;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.RecipeCategory;
@@ -8,13 +11,17 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class RecipeService {
     private final RecipeRepository recipeRepository;
 
-    public RecipeService(RecipeRepository recipeRepository) {
+    private final GeminiService geminiService;
+
+    public RecipeService(RecipeRepository recipeRepository, GeminiService geminiService) {
         this.recipeRepository = recipeRepository;
+        this.geminiService = geminiService;
     }
 
     //  Get all recipes
@@ -83,6 +90,30 @@ public class RecipeService {
     //  Get recipes by multiple categories
     public List<Recipe> getRecipesByCategories(List<RecipeCategory> categories) {
         return recipeRepository.findByCategoryIn(categories);  // Fixed repository method name
+    }
 
+    public String generateNutritionalFacts(Long recipeId) throws Exception {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new IllegalArgumentException("Recipe not found"));
+
+        NutritionRequestDTO requestDTO = new NutritionRequestDTO();
+        requestDTO.setRecipeName(recipe.getName());
+
+        List<IngredientDTO> ingredients = recipe.getRecipeIngredients().stream()
+                .map(ri -> {
+                    IngredientDTO dto = new IngredientDTO();
+                    dto.setName(ri.getIngredient().getName());
+                    dto.setQuantity(ri.getQuantity() != null ? ri.getQuantity() : 0.0);
+                    dto.setUnit(ri.getUnit() != null ? ri.getUnit() : "");
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        requestDTO.setIngredients(ingredients);
+
+        ObjectMapper mapper = new ObjectMapper();
+        String nutritionData = mapper.writeValueAsString(requestDTO);
+
+        return geminiService.generateNutritionLabel(nutritionData);
     }
 }

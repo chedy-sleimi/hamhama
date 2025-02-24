@@ -4,6 +4,7 @@ import com.hamhama.dto.RecipeDTO;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.RecipeCategory;
 import com.hamhama.service.RecipeService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -87,5 +88,22 @@ public class RecipeController {
     public ResponseEntity<List<Recipe>> getRecipesByCategories(@RequestBody List<RecipeCategory> categories) {
         List<Recipe> recipes = recipeService.getRecipesByCategories(categories);
         return ResponseEntity.ok(recipes);
+    }
+
+    @GetMapping(value = "/{id}/nutrition", produces = "image/svg+xml")
+    public ResponseEntity<String> getNutritionFacts(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(recipeService.generateNutritionalFacts(id));
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.internalServerError()
+                    .body("""
+                <svg viewBox="0 0 200 50">
+                    <text x="10" y="20" font-family="Arial" font-size="12" fill="red">
+                        Error: ${e.getMessage()}
+                    </text>
+                </svg>
+                """.replace("${e.getMessage()}", e.getMessage()));
+        }
     }
 }
