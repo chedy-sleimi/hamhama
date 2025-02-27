@@ -27,8 +27,6 @@ public class User implements UserDetails { // Implement UserDetails for security
 
     private Boolean isPrivate = false; // Default to public profile
 
-    private String profilePictureUrl;
-
     @Enumerated(EnumType.STRING) // Store Role as String (USER or ADMIN)
     @ElementCollection(fetch = FetchType.EAGER) // Correct annotation for collection of enum values
     private Set<Role> roles = new HashSet<>(); // Roles stored as Set
@@ -112,15 +110,6 @@ public class User implements UserDetails { // Implement UserDetails for security
     }
 
     // ✅ Standard Getters & Setters
-
-    // Add getter and setter for profilePictureUrl
-    public String getProfilePictureUrl() {
-        return profilePictureUrl;
-    }
-
-    public void setProfilePictureUrl(String profilePictureUrl) {
-        this.profilePictureUrl = profilePictureUrl;
-    }
 
     public List<User> getBlockedUsers() {
         return blockedUsers;

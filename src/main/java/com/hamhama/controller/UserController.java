@@ -4,8 +4,10 @@ import com.hamhama.dto.UserProfile;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.User;
 import com.hamhama.service.UserService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -81,18 +83,6 @@ public class UserController {
     @GetMapping("/{id}/profile")
     public UserProfile getUserProfile(@PathVariable Long id) {
         return userService.getUserProfile(id); // Get the profile details from the service
-    }
-    // Add a new endpoint to update the profile picture
-    @PutMapping("/{id}/profile-picture")
-    public ResponseEntity<String> updateProfilePicture(
-            @PathVariable Long id,
-            @RequestParam String profilePictureUrl) {
-        try {
-            userService.updateProfilePicture(id, profilePictureUrl); // Call the service method
-            return ResponseEntity.ok("Profile picture updated successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(e.getMessage()); // Handle user not found
-        }
     }
 
     // Block a user
@@ -173,4 +163,25 @@ public class UserController {
         }
     }
 
+    @PutMapping(value = "/{id}/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> updateProfilePicture(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            userService.updateProfilePicture(id, file);
+            return ResponseEntity.ok("Profile picture updated successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}/profile-picture")
+    public ResponseEntity<String> deleteProfilePicture(@PathVariable Long id) {
+        try {
+            userService.deleteProfilePicture(id); // Call the service method to delete the image
+            return ResponseEntity.ok("Profile picture deleted successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage()); // Handle errors
+        }
+    }
 }

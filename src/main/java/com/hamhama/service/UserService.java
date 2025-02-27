@@ -7,8 +7,16 @@ import com.hamhama.repository.RecipeRepository;
 import com.hamhama.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import java.util.List;
 import java.util.Optional;
+
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 @Service
 public class UserService  {
@@ -110,30 +118,21 @@ public class UserService  {
         // Retrieve liked recipes
         List<Recipe> likedRecipes = user.getLikedRecipes();
 
-        // Retrieve profile picture URL
-        String profilePictureUrl = user.getProfilePictureUrl();
-
         // Retrieve privacy setting
         Boolean isPrivate = user.getIsPrivate();
 
-        // Create and return the UserProfile
+        String profilePictureUrl = "/profile-pictures/" + user.getId() + ".jpg";
         return new UserProfile(
                 user.getUsername(),
                 user.getEmail(),
                 followersCount,
                 followingCount,
                 likedRecipes,
-                profilePictureUrl,
-                isPrivate // Add the privacy setting
+                profilePictureUrl, // Dynamically generated URL
+                user.getIsPrivate()
         );
     }
 
-    // Add a method to update the profile picture URL
-    public void updateProfilePicture(Long userId, String profilePictureUrl) {
-        User user = findUserById(userId); // Find the user by ID
-        user.setProfilePictureUrl(profilePictureUrl); // Update the profile picture URL
-        userRepository.save(user); // Save the updated user
-    }
     // Block a user
     public void blockUser(Long userId, Long blockedUserId) {
         if (userId.equals(blockedUserId)) {
@@ -192,5 +191,44 @@ public class UserService  {
 
         // If the profile is private, only the user themselves and their followers can access it
         return profileUserId.equals(requestingUserId) || profileUser.getFollowers().contains(requestingUser);
+    }
+
+    public void updateProfilePicture(Long userId, MultipartFile file) {
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                throw new RuntimeException("File is empty");
+            }
+            if (file.getSize() > 5 * 1024 * 1024) {
+                throw new RuntimeException("File size exceeds 5MB");
+            }
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/jpeg")) {
+                throw new RuntimeException("Only JPG images are allowed");
+            }
+
+            User user = findUserById(userId);
+            String uploadDir = "uploads/profile-pictures/";
+            Path dirPath = Paths.get(uploadDir);
+            if (!Files.exists(dirPath)) {
+                Files.createDirectories(dirPath);
+            }
+
+            String fileName = user.getId() + ".jpg";
+            Path filePath = dirPath.resolve(fileName);
+            Files.copy(file.getInputStream(), filePath, REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save profile picture", e);
+        }
+    }
+
+    public void deleteProfilePicture(Long id) {
+        // Delete profile picture
+        Path imagePath = Paths.get("uploads/profile-pictures/" + id + ".jpg");
+        try {
+            Files.deleteIfExists(imagePath);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to delete profile picture", e);
+        }
     }
 }
