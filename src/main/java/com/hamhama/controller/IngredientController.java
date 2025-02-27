@@ -1,7 +1,9 @@
 package com.hamhama.controller;
 
+import com.hamhama.dto.SubstituteDTO;
 import com.hamhama.model.Ingredient;
 import com.hamhama.service.IngredientService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,5 +42,24 @@ public class IngredientController {
     @DeleteMapping("/{id}")
     public void deleteIngredient(@PathVariable Long id) {
         ingredientService.deleteIngredient(id);
+    }
+
+    // In IngredientController.java
+    @PostMapping("/{id}/substitutes")
+    public ResponseEntity<SubstituteDTO> getSubstitutes(@PathVariable Long id) {
+        try {
+            SubstituteDTO response = ingredientService.getSubstitutes(id);
+
+            if (response != null) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            // Create error response DTO
+            SubstituteDTO errorResponse = new SubstituteDTO();
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 }

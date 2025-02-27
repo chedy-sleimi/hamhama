@@ -1,5 +1,7 @@
 package com.hamhama.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hamhama.dto.SubstituteDTO;
 import com.hamhama.model.Ingredient;
 import com.hamhama.repository.IngredientRepository;
 import org.springframework.stereotype.Service;
@@ -10,9 +12,11 @@ import java.util.Optional;
 @Service
 public class IngredientService {
     private final IngredientRepository ingredientRepository;
+    private final GeminiService geminiService;
 
-    public IngredientService(IngredientRepository ingredientRepository) {
+    public IngredientService(IngredientRepository ingredientRepository , GeminiService geminiService) {
         this.ingredientRepository = ingredientRepository;
+        this.geminiService = geminiService;
     }
 
     public List<Ingredient> getAllIngredients() {
@@ -42,4 +46,17 @@ public class IngredientService {
     public void deleteIngredient(Long id) {
         ingredientRepository.deleteById(id);
     }
+
+    public SubstituteDTO getSubstitutes(Long id) throws Exception {
+        // Directly return the result from GeminiService
+        Optional<Ingredient> ingredient = ingredientRepository.findById(id);
+
+        if (ingredient.isPresent()) {
+            Ingredient i = ingredient.get();
+            return geminiService.getSubstitutes(i.getName());
+        }
+
+        return null;
+    }
+
 }

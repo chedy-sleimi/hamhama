@@ -1,7 +1,10 @@
 package com.hamhama.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hamhama.dto.SubstituteDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -100,7 +103,6 @@ PROHIBITED:
 - Font sizes deviating from specification
 - Spacing less than 22px between rows
 """;
-
     @Value("${gemini.api.key}")
     private String apiKey;
 
@@ -177,4 +179,91 @@ PROHIBITED:
 
         return svgContent.trim();
     }
+
+    // Add new method for substitutions
+    public SubstituteDTO getSubstitutes(String ingredient) throws Exception {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        // Declare jsonResponse outside try block for error handling
+        String jsonResponse = null;
+
+        try {
+            String formattedPrompt = String.format("""
+            Generate ingredient substitutes in STRICT JSON format:
+            {
+                "original": "%s",
+                "substitutes": [
+                    {"name": "Sub1", "reason": "Reason1"},
+                    {"name": "Sub2", "reason": "Reason2"}
+                ]
+            }
+            No other text or formatting! Only valid JSON!
+            """, ingredient);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            Map<String, Object> content = new HashMap<>();
+            content.put("parts", List.of(Map.of("text", formattedPrompt)));
+            requestBody.put("contents", List.of(content));
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    GEMINI_URL + "?key=" + apiKey,
+                    HttpMethod.POST,
+                    entity,
+                    String.class
+            );
+
+
+            System.out.println("=== RAW RESPONSE ===");
+            System.out.println(response.getBody());
+
+            JsonNode root = new ObjectMapper().readTree(response.getBody());
+            JsonNode candidates = root.path("candidates");
+
+            if (candidates.isEmpty() || !candidates.isArray() || candidates.get(0) == null) {
+                throw new RuntimeException("No valid candidates in response");
+            }
+
+            jsonResponse = candidates.get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
+
+            // Enhanced cleaning
+            jsonResponse = jsonResponse
+                    .replaceAll("(?i)```json", "") // Case-insensitive replacement
+                    .replaceAll("```", "")
+                    .replaceAll("(?s)^.*?\\{", "{") // Remove everything before first {
+                    .replaceAll("(?s)\\}[^}]*$", "}") // Remove everything after last }
+                    .replaceAll("^\\s+|\\s+$", "") // Trim whitespace
+                    .trim();
+            System.out.println("=== CLEANED JSON ===\n" + jsonResponse);
+
+            // Validate JSON structure
+            try {
+                new ObjectMapper().readTree(jsonResponse);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Invalid JSON: " + jsonResponse);
+            }
+
+            System.out.println("Cleaned JSON: " + jsonResponse);
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+            return mapper.readValue(jsonResponse, SubstituteDTO.class);
+
+        } catch (HttpClientErrorException e) {
+            throw new RuntimeException("Gemini API request failed: " + e.getStatusCode()
+                    + " - " + e.getResponseBodyAsString());
+        } catch (JsonProcessingException e) {
+            // Include jsonResponse in error message
+            String errorJson = jsonResponse != null ? jsonResponse : "No JSON content available";
+            throw new RuntimeException("Failed to parse JSON response: " + e.getOriginalMessage()
+                    + "\nJSON: " + errorJson);
+        }
+    }
+
 }
