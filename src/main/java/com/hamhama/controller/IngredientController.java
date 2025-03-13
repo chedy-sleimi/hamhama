@@ -4,6 +4,7 @@ import com.hamhama.dto.SubstituteDTO;
 import com.hamhama.model.Ingredient;
 import com.hamhama.service.IngredientService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -60,6 +61,18 @@ public class IngredientController {
             SubstituteDTO errorResponse = new SubstituteDTO();
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping(value = "/generate-image", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> generateRecipeImage(@RequestBody List<Long> ingredientIds) {
+        try {
+            byte[] imageBytes = ingredientService.generateRecipeImage(ingredientIds);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .body(imageBytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

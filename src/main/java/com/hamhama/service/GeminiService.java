@@ -11,10 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -266,4 +267,56 @@ PROHIBITED:
         }
     }
 
+    private static final String IMAGE_PROMPT_TEMPLATE = """
+Professional overhead photo of a FULLY PREPARED dish where %s have been properly COOKED and COMBINED into a cohesive, realistic meal. 
+REQUIREMENTS:
+1. All ingredients must be THOROUGHLY COOKED and transformed (no raw state visible)
+2. Ingredients must be INTEGRATED into a single cohesive dish, not separately arranged
+3. Must follow traditional culinary preparation methods and proportions
+4. Final dish should be recognizable as a complete meal, not ingredients awaiting preparation
+5. Plated on white ceramic plate with beige marble background
+""";
+
+    public byte[] generateRecipeImage(List<String> ingredients) throws Exception {
+        try {
+            // Format ingredients list
+            String ingredientsList = ingredients.stream()
+                    .filter(ing -> ing != null && !ing.trim().isEmpty())
+                    .collect(Collectors.joining(", "));
+
+            System.out.println("Ingredients: " + ingredientsList);
+
+            // Create the prompt using the existing template
+            String prompt = String.format(IMAGE_PROMPT_TEMPLATE, ingredientsList);
+
+            // URL-encode the prompt with proper space handling
+            String encodedPrompt = URLEncoder.encode(prompt, StandardCharsets.UTF_8.toString())
+                    .replace("+", "%20");
+
+            // Generate a random seed between 1 and 999999
+            int randomSeed = new Random().nextInt(999999) + 1;
+            System.out.println("Using random seed: " + randomSeed);
+
+            // Build Pollinations.AI URL with parameters including the random seed
+            String url = String.format(
+                    "https://pollinations.ai/p/%s?width=384&height=384&model=flux&seed=%d",
+                    encodedPrompt,
+                    randomSeed
+            );
+
+            System.out.println("Generating image with URL: " + url);
+
+            // Fetch image using RestTemplate
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Image generation failed. HTTP Status: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Image generation failed: " + e.getMessage(), e);
+        }
+    }
 }

@@ -59,4 +59,17 @@ public class IngredientService {
         return null;
     }
 
+    public byte[] generateRecipeImage(List<Long> ingredientIds) throws Exception {
+        List<Ingredient> ingredients = ingredientRepository.findAllById(ingredientIds);
+        if (ingredients.isEmpty()) {
+            throw new IllegalArgumentException("No ingredients found");
+        }
+
+        List<String> ingredientNames = ingredients.stream()
+                .map(Ingredient::getName)
+                .toList();
+
+        return geminiService.generateRecipeImage(ingredientNames);
+    }
+
 }
