@@ -1,6 +1,7 @@
 package com.hamhama.controller;
 
 import com.hamhama.dto.RecipeDTO;
+import com.hamhama.dto.RecipeResponseDTO;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.RecipeCategory;
 import com.hamhama.service.RecipeService;
@@ -21,20 +22,6 @@ public class RecipeController {
 
     public RecipeController(RecipeService recipeService) {
         this.recipeService = recipeService;
-    }
-
-    //  Get all recipes
-    @GetMapping
-    public ResponseEntity<List<Recipe>> getAllRecipes() {
-        List<Recipe> recipes = recipeService.getAllRecipes();
-        return ResponseEntity.ok(recipes);
-    }
-
-    //  Get a recipe by ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Recipe> getRecipeById(@PathVariable Long id) {
-        Optional<Recipe> recipe = recipeService.getRecipeById(id);
-        return recipe.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     //  Add a new recipe (with category validation)
@@ -106,4 +93,17 @@ public class RecipeController {
                 """.replace("${e.getMessage()}", e.getMessage()));
         }
     }
+
+    @GetMapping
+    public ResponseEntity<List<RecipeResponseDTO>> getAllRecipes() {
+        return ResponseEntity.ok(recipeService.getAllRecipes());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<RecipeResponseDTO> getRecipeById(@PathVariable Long id) {
+        return recipeService.getRecipeById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }

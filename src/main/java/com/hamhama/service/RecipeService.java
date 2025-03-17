@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hamhama.dto.IngredientDTO;
 import com.hamhama.dto.NutritionRequestDTO;
 import com.hamhama.dto.RecipeDTO;
+import com.hamhama.dto.RecipeResponseDTO;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.RecipeCategory;
 import com.hamhama.repository.RecipeRepository;
@@ -22,16 +23,6 @@ public class RecipeService {
     public RecipeService(RecipeRepository recipeRepository, GeminiService geminiService) {
         this.recipeRepository = recipeRepository;
         this.geminiService = geminiService;
-    }
-
-    //  Get all recipes
-    public List<Recipe> getAllRecipes() {
-        return recipeRepository.findAll();
-    }
-
-    //  Get a recipe by ID
-    public Optional<Recipe> getRecipeById(Long id) {
-        return recipeRepository.findById(id);
     }
 
     //  Add recipe (must have a category)
@@ -115,5 +106,27 @@ public class RecipeService {
         String nutritionData = mapper.writeValueAsString(requestDTO);
 
         return geminiService.generateNutritionLabel(nutritionData);
+    }
+
+    private RecipeResponseDTO convertToResponseDTO(Recipe recipe) {
+        RecipeResponseDTO dto = new RecipeResponseDTO();
+        dto.setId(recipe.getId());
+        dto.setName(recipe.getName());
+        dto.setDescription(recipe.getDescription());
+        dto.setCategory(recipe.getCategory());
+        dto.setAverageRating(recipe.getAverageRating());
+        dto.setImageUrl("/recipe-pictures/" + recipe.getId() + ".jpg");
+        return dto;
+    }
+
+    // Update service methods
+    public List<RecipeResponseDTO> getAllRecipes() {
+        return recipeRepository.findAll().stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public Optional<RecipeResponseDTO> getRecipeById(Long id) {
+        return recipeRepository.findById(id).map(this::convertToResponseDTO);
     }
 }
