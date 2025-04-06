@@ -19,9 +19,9 @@ public class CommentController {
 
     // Add a new comment
     @PostMapping("/add")
-    public ResponseEntity<String> addComment(@RequestParam Long userId, @RequestParam Long recipeId, @RequestParam String content) {
+    public ResponseEntity<String> addComment(@RequestParam Long recipeId, @RequestParam String content) {
         try {
-            commentService.addComment(userId, recipeId, content);
+            commentService.addComment(recipeId, content);
             return ResponseEntity.ok("Comment added successfully");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

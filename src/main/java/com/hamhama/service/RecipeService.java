@@ -7,204 +7,231 @@ import com.hamhama.dto.RecipeDTO;
 import com.hamhama.dto.RecipeResponseDTO;
 import com.hamhama.model.Recipe;
 import com.hamhama.model.RecipeCategory;
+import com.hamhama.model.RecipeIngredient; // Assuming this exists
+import com.hamhama.model.User;
 import com.hamhama.repository.RecipeRepository;
+// Assuming IngredientRepository and RecipeIngredientRepository exist if managing ingredients here
+// import com.hamhama.repository.IngredientRepository;
+// import com.hamhama.repository.RecipeIngredientRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize; // Import
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils; // Import StringUtils
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class RecipeService {
+    private static final Logger log = LoggerFactory.getLogger(RecipeService.class);
+
     private final RecipeRepository recipeRepository;
     private final GeminiService geminiService; // Assuming GeminiService exists
-
-    public RecipeService(RecipeRepository recipeRepository, GeminiService geminiService) {
-        this.recipeRepository = recipeRepository;
-        this.geminiService = geminiService;
-    }
+    // Inject IngredientRepository etc. if needed for ingredient mapping
+    // private final IngredientRepository ingredientRepository;
 
     /**
-     * Adds a new recipe. Ensures category is provided.
-     * Assumes RecipeDTO contains a getCategory() method.
+     * Adds a new recipe, associating it with the currently authenticated user.
+     *
+     * @param recipeDTO DTO containing recipe details.
+     * @return The saved Recipe entity.
      */
     public Recipe addRecipe(RecipeDTO recipeDTO) {
         if (recipeDTO.getCategory() == null) {
             throw new IllegalArgumentException("Recipe category is required");
         }
 
+        User currentUser = getCurrentUser();
+
         Recipe recipe = new Recipe();
         recipe.setName(recipeDTO.getName());
         recipe.setDescription(recipeDTO.getDescription());
         recipe.setCategory(recipeDTO.getCategory());
-        // Note: Handling user association and ingredients would typically happen here too.
-        // Example: recipe.setUser(userService.getCurrentUser());
-        // Example: map and set recipeDTO.getIngredients() to recipe.setRecipeIngredients(...)
+        recipe.setUser(currentUser); // Assign the authenticated user
 
-        return recipeRepository.save(recipe);
+        // TODO: Handle ingredients mapping from DTO if present
+        // mapAndSetIngredients(recipe, recipeDTO.getIngredients());
+
+        Recipe savedRecipe = recipeRepository.save(recipe);
+        log.info("User '{}' added recipe '{}' (ID: {})", currentUser.getUsername(), savedRecipe.getName(), savedRecipe.getId());
+        return savedRecipe;
     }
 
     /**
-     * Updates an existing recipe. Ensures category is updated.
+     * Updates an existing recipe. Only the owner or an ADMIN can update.
+     *
+     * @param id            ID of the recipe to update.
+     * @param recipeDetails DTO or Entity containing updated details.
+     * @return The updated Recipe entity.
      */
-    public Recipe updateRecipe(Long id, Recipe recipeDetails) {
-        // It's generally better practice to take a DTO here too,
-        // but we'll stick to the provided signature.
-        return recipeRepository.findById(id).map(existingRecipe -> {
-            existingRecipe.setName(recipeDetails.getName());
-            existingRecipe.setDescription(recipeDetails.getDescription());
-            // Be careful when updating collections like this. Usually requires merging logic.
-            // existingRecipe.setRecipeIngredients(recipeDetails.getRecipeIngredients());
-            // You might need specific logic to add/remove/update RecipeIngredient entities.
-            existingRecipe.setUser(recipeDetails.getUser()); // Ensure user details are handled correctly
-            existingRecipe.setCategory(recipeDetails.getCategory()); // Update category
-            return recipeRepository.save(existingRecipe);
-        }).orElse(null); // Or throw RecipeNotFoundException
+    @PreAuthorize("hasRole('ADMIN') or @recipeRepository.findById(#id).orElse(null)?.user?.username == principal.username")
+    public Recipe updateRecipe(Long id, Recipe recipeDetails) { // Consider using RecipeDTO here
+        // @PreAuthorize handles the ownership/admin check
+
+        Recipe existingRecipe = recipeRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Recipe ID {} not found for update", id);
+                    return new RuntimeException("Recipe not found");
+                });
+
+        // Update fields from recipeDetails (use DTO preferably)
+        existingRecipe.setName(recipeDetails.getName());
+        existingRecipe.setDescription(recipeDetails.getDescription());
+        existingRecipe.setCategory(recipeDetails.getCategory());
+        // TODO: Handle ingredient updates carefully (merge logic often needed)
+        // mapAndSetIngredients(existingRecipe, recipeDetails.getIngredients());
+
+        Recipe updatedRecipe = recipeRepository.save(existingRecipe);
+        log.info("Recipe ID {} updated successfully by user '{}' or ADMIN.", id, getCurrentUsername());
+        return updatedRecipe;
     }
 
     /**
-     * Deletes a recipe by ID.
+     * Deletes a recipe by ID. Only the owner or an ADMIN can delete.
+     *
+     * @param id ID of the recipe to delete.
      */
+    @PreAuthorize("hasRole('ADMIN') or @recipeRepository.findById(#id).orElse(null)?.user?.username == principal.username")
     public void deleteRecipe(Long id) {
+        // @PreAuthorize handles the ownership/admin check
         if (!recipeRepository.existsById(id)) {
-            // Consider throwing a specific RecipeNotFoundException
-            throw new IllegalArgumentException("Recipe with ID " + id + " not found.");
+            log.warn("Recipe ID {} not found for deletion", id);
+            throw new RuntimeException("Recipe not found with ID: " + id);
         }
         recipeRepository.deleteById(id);
+        log.info("Recipe ID {} deleted successfully by user '{}' or ADMIN.", id, getCurrentUsername());
     }
 
-    /**
-     * Searches recipes by optional criteria: name, description, ingredient, category.
-     * If multiple non-category criteria are provided, only the first one encountered is used in this implementation.
-     * If category is provided, it filters by category first, potentially combined with one other criterion.
-     */
+    // --- Read Operations (Mostly unchanged, assuming public visibility or handled by controller access) ---
+
+    @Transactional(readOnly = true)
     public List<Recipe> searchRecipes(String name, String description, String ingredient, RecipeCategory category) {
+        // This logic might need refinement based on exact search requirements & indexing
         boolean hasName = StringUtils.hasText(name);
         boolean hasDescription = StringUtils.hasText(description);
         boolean hasIngredient = StringUtils.hasText(ingredient);
 
         if (category != null) {
-            // Category is provided, combine with other criteria if present
-            if (hasName) {
-                return recipeRepository.findByCategoryAndNameContainingIgnoreCase(category, name);
-            }
-            if (hasDescription) {
-                return recipeRepository.findByCategoryAndDescriptionContainingIgnoreCase(category, description);
-            }
-            if (hasIngredient) {
-                return recipeRepository.findByCategoryAndIngredientsNameContainingIgnoreCase(category, ingredient);
-            }
-            // Only category is provided
+            if (hasName) return recipeRepository.findByCategoryAndNameContainingIgnoreCase(category, name);
+            if (hasDescription) return recipeRepository.findByCategoryAndDescriptionContainingIgnoreCase(category, description);
+            if (hasIngredient) return recipeRepository.findByCategoryAndIngredientsNameContainingIgnoreCase(category, ingredient);
             return recipeRepository.findByCategory(category);
         } else {
-            // No category provided, use original logic
-            if (hasName) {
-                return recipeRepository.findByNameContainingIgnoreCase(name);
-            }
-            if (hasDescription) {
-                return recipeRepository.findByDescriptionContainingIgnoreCase(description);
-            }
-            if (hasIngredient) {
-                return recipeRepository.findByIngredientsNameContainingIgnoreCase(ingredient);
-            }
+            if (hasName) return recipeRepository.findByNameContainingIgnoreCase(name);
+            if (hasDescription) return recipeRepository.findByDescriptionContainingIgnoreCase(description);
+            if (hasIngredient) return recipeRepository.findByIngredientsNameContainingIgnoreCase(ingredient);
         }
-
-        // No filters provided, return all
-        // Consider adding pagination here for performance if the dataset can grow large.
-        return recipeRepository.findAll();
+        log.debug("No specific search criteria provided, returning all recipes.");
+        return recipeRepository.findAll(); // Consider Pagination
     }
 
-    /**
-     * Gets recipes belonging to a specific category.
-     */
+    @Transactional(readOnly = true)
     public List<Recipe> getRecipesByCategory(RecipeCategory category) {
         return recipeRepository.findByCategory(category);
     }
 
-    /**
-     * Gets recipes belonging to any of the specified categories.
-     */
+    @Transactional(readOnly = true)
     public List<Recipe> getRecipesByCategories(List<RecipeCategory> categories) {
         if (categories == null || categories.isEmpty()) {
-            return List.of(); // Return empty list if input is empty/null
+            return List.of();
         }
         return recipeRepository.findByCategoryIn(categories);
     }
 
-    /**
-     * Generates nutritional facts for a recipe using GeminiService.
-     */
+    @Transactional(readOnly = true)
     public String generateNutritionalFacts(Long recipeId) throws Exception {
+        // Ensure recipe exists before proceeding
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new IllegalArgumentException("Recipe not found with ID: " + recipeId));
 
+        // Map to DTO for Gemini Service
         NutritionRequestDTO requestDTO = new NutritionRequestDTO();
         requestDTO.setRecipeName(recipe.getName());
 
-        List<IngredientDTO> ingredients = recipe.getRecipeIngredients().stream()
-                .map(ri -> {
-                    IngredientDTO dto = new IngredientDTO();
-                    dto.setName(ri.getIngredient().getName());
-                    // Handle potential nulls gracefully
-                    dto.setQuantity(ri.getQuantity() != null ? ri.getQuantity() : 0.0);
-                    dto.setUnit(ri.getUnit() != null ? ri.getUnit() : "");
-                    return dto;
-                })
-                .collect(Collectors.toList());
-
-        requestDTO.setIngredients(ingredients);
+        // Assuming Recipe entity has a collection like List<RecipeIngredient> recipeIngredients
+        if (recipe.getRecipeIngredients() != null) {
+            List<IngredientDTO> ingredients = recipe.getRecipeIngredients().stream()
+                    .map(ri -> {
+                        IngredientDTO dto = new IngredientDTO();
+                        if(ri.getIngredient() != null) dto.setName(ri.getIngredient().getName());
+                        dto.setQuantity(ri.getQuantity() != null ? ri.getQuantity() : 0.0);
+                        dto.setUnit(ri.getUnit() != null ? ri.getUnit() : "");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+            requestDTO.setIngredients(ingredients);
+        } else {
+            requestDTO.setIngredients(List.of()); // Empty list if no ingredients mapped
+        }
 
         ObjectMapper mapper = new ObjectMapper();
         String nutritionData = mapper.writeValueAsString(requestDTO);
+        log.debug("Generated NutritionRequestDTO JSON for recipe ID {}: {}", recipeId, nutritionData);
 
-        // Assuming GeminiService has this method
         return geminiService.generateNutritionLabel(nutritionData);
     }
 
-    /**
-     * Converts a Recipe entity to a RecipeResponseDTO.
-     */
-    private RecipeResponseDTO convertToResponseDTO(Recipe recipe) {
-        RecipeResponseDTO dto = new RecipeResponseDTO();
-        dto.setId(recipe.getId());
-        dto.setName(recipe.getName());
-        dto.setDescription(recipe.getDescription());
-        dto.setCategory(recipe.getCategory()); // Category is included
-        dto.setAverageRating(recipe.getAverageRating());
-        // Assuming a standard pattern for image URLs
-        // This might need adjustment based on your static resource handling/storage solution
-        dto.setImageUrl("/recipe-pictures/" + recipe.getId() + ".jpg");
-        // Add other fields if needed (e.g., author username)
-        // if (recipe.getUser() != null) {
-        //    dto.setAuthorUsername(recipe.getUser().getUsername());
-        // }
-        return dto;
-    }
 
-    /**
-     * Gets all recipes, converted to DTOs.
-     */
+    @Transactional(readOnly = true)
     public List<RecipeResponseDTO> getAllRecipes() {
-        // Add pagination here for real-world applications (e.g., using Pageable)
+        log.debug("Fetching all recipes and converting to DTOs.");
+        // Add pagination in real app: recipeRepository.findAll(pageable).stream()...
         return recipeRepository.findAll().stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Gets a single recipe by ID, converted to a DTO.
-     */
+
+    @Transactional(readOnly = true)
     public Optional<RecipeResponseDTO> getRecipeById(Long id) {
+        log.debug("Fetching recipe by ID: {}", id);
         return recipeRepository.findById(id).map(this::convertToResponseDTO);
     }
 
-    // --- Getters for dependencies (useful for testing) ---
-    public RecipeRepository getRecipeRepository() {
-        return recipeRepository;
+    // --- DTO Conversion ---
+    private RecipeResponseDTO convertToResponseDTO(Recipe recipe) {
+        RecipeResponseDTO dto = new RecipeResponseDTO();
+        dto.setId(recipe.getId());
+        dto.setName(recipe.getName());
+        dto.setDescription(recipe.getDescription());
+        dto.setCategory(recipe.getCategory());
+        dto.setAverageRating(recipe.getAverageRating());
+        // Standardize Image URL generation - adjust if needed
+        dto.setImageUrl("/recipe-pictures/" + recipe.getId() + ".jpg"); // Example path
+        if (recipe.getUser() != null) {
+            dto.setAuthorUsername(recipe.getUser().getUsername());
+        }
+        // TODO: Include ingredient list in DTO if needed
+        // dto.setIngredients(... map recipe.getRecipeIngredients() ...);
+        return dto;
     }
 
-    public GeminiService getGeminiService() {
-        return geminiService;
+    // --- Helper Methods ---
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof User)) {
+            throw new AccessDeniedException("User is not authenticated.");
+        }
+        return (User) authentication.getPrincipal();
     }
+    private String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "anonymous";
+        }
+        return authentication.getName();
+    }
+
+    // TODO: Implement ingredient mapping logic if RecipeDTO contains ingredients
+    // private void mapAndSetIngredients(Recipe recipe, List<IngredientInRecipeDTO> ingredientDTOs) { ... }
 }

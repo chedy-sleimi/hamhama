@@ -15,14 +15,14 @@ public class RatingController {
     }
 
     @PostMapping("/rate")
-    public ResponseEntity<String> rateRecipe(@RequestParam Long userId, @RequestParam Long recipeId, @RequestParam int ratingValue) {
+    public ResponseEntity<String> rateRecipe(@RequestParam Long recipeId, @RequestParam int ratingValue) {
         // Validate rating value
         if (ratingValue < 1 || ratingValue > 5) {
             return ResponseEntity.badRequest().body("Rating must be between 1 and 5");
         }
 
         // Add rating for the recipe
-        ratingService.addRating(userId, recipeId, ratingValue);
+        ratingService.addRating(recipeId, ratingValue);
 
         return ResponseEntity.ok("Rating added successfully");
     }
@@ -32,8 +32,8 @@ public class RatingController {
         return ResponseEntity.ok(average);
     }
     @DeleteMapping("/delete")
-    public ResponseEntity<String> deleteRating(@RequestParam Long userId, @RequestParam Long recipeId) {
-        ratingService.deleteRating(userId, recipeId);
+    public ResponseEntity<String> deleteRating(@RequestParam Long recipeId) {
+        ratingService.deleteRating(recipeId);
         return ResponseEntity.ok("Rating deleted successfully");
     }
 }

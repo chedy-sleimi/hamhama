@@ -1,60 +1,24 @@
 package com.hamhama.dto;
 
-import com.hamhama.model.RecipeCategory;
+import com.hamhama.model.RecipeCategory; // Ensure this import exists
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
+import java.util.List; // If ingredients are added
+
+@Data // Includes getters, setters, toString, equals, hashCode
+@NoArgsConstructor
+@AllArgsConstructor
 public class RecipeResponseDTO {
     private Long id;
     private String name;
     private String description;
     private RecipeCategory category;
-    private double averageRating;
+    private Double averageRating; // Use Double wrapper type if average can be conceptually null before calculation
     private String imageUrl;
+    private String authorUsername; // <<< ADDED FIELD
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public RecipeCategory getCategory() {
-        return category;
-    }
-
-    public void setCategory(RecipeCategory category) {
-        this.category = category;
-    }
-
-    public double getAverageRating() {
-        return averageRating;
-    }
-
-    public void setAverageRating(double averageRating) {
-        this.averageRating = averageRating;
-    }
-
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
+    // Optional: Add ingredients if needed in response
+    // private List<IngredientInRecipeDTO> ingredients;
 }

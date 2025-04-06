@@ -1,0 +1,1305 @@
+{
+  "info": {
+    "name": "Hamhama API Authorization Tests",
+    "description": "Tests authorization rules for the Hamhama API.\n\n**SETUP:**\n1. Ensure the Spring Boot application is running on `http://localhost:8080`.\n2. Run the 'Login Admin' and 'Login User' requests in the 'Auth' folder FIRST to populate the `admin_token` and `user_token` variables.\n3. Manually update placeholder ID variables (`recipeId`, `userId`, `ingredientId`, etc.) in the Collection Variables section with valid IDs from your running application/database before testing specific GET/PUT/DELETE endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints",
+      "item": [
+        {
+          "name": "Register User (Public)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser_{{$randomInt}}\",\n    \"email\": \"test_{{$randomInt}}@example.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Tests public registration endpoint."
+          },
+          "response": [],
+          "_postman_previewlanguage": "json",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body indicates success\", function () {",
+                  "    pm.expect(pm.response.text()).to.include(\"User registered successfully\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Auto-save admin token to collection variable",
+                  "if (pm.response.code === 200) {",
+                  "    try {",
+                  "        var jsonData = pm.response.json();",
+                  "        if (jsonData && jsonData.token) {",
+                  "            pm.collectionVariables.set(\"admin_token\", jsonData.token);",
+                  "            console.log(\"Admin Token set.\");",
+                  "            pm.test(\"Admin Token received\", true);",
+                  "        } else {",
+                  "             console.error(\"Token not found in admin login response body.\");",
+                  "             pm.test(\"Admin Token received\", false);",
+                  "        }",
+                  "    } catch (e) {",
+                  "        console.error(\"Error parsing admin login response JSON:\", e);",
+                  "        pm.test(\"Admin Token received\", false);",
+                  "    }",
+                  "} else {",
+                  "    console.error(\"Admin Login failed with status: \" + pm.response.code);",
+                  "    pm.test(\"Admin Login Successful\", false);",
+                  "}",
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"chedy\",\n    \"password\": \"chiboub\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in as the admin user (chedy) and saves the token."
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Auto-save user token to collection variable",
+                  "if (pm.response.code === 200) {",
+                  "    try {",
+                  "        var jsonData = pm.response.json();",
+                  "        if (jsonData && jsonData.token) {",
+                  "            pm.collectionVariables.set(\"user_token\", jsonData.token);",
+                  "            console.log(\"User Token set.\");",
+                  "            pm.test(\"User Token received\", true);",
+                  "        } else {",
+                  "             console.error(\"Token not found in user login response body.\");",
+                  "             pm.test(\"User Token received\", false);",
+                  "        }",
+                  "    } catch (e) {",
+                  "        console.error(\"Error parsing user login response JSON:\", e);",
+                  "         pm.test(\"User Token received\", false);",
+                  "    }",
+                  "} else {",
+                  "    console.error(\"User Login failed with status: \" + pm.response.code);",
+                  "     pm.test(\"User Login Successful\", false);",
+                  "}",
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"chiboub\",\n    \"password\": \"chiboub\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in as the regular user (chiboub) and saves the token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Admin GET All Users",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Admin] Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Attempt GET All Users",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anon Attempt GET All Users",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 401 Unauthorized\", function () {",
+                  "    // Spring security might return 401 or 403 depending on entry point",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin GET User By ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdToView}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdToView}}"
+              ]
+            },
+            "description": "Admin viewing details of another user. Update `userIdToView`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Admin] Status code is 200 OK (if user exists)\", function () {",
+                  "    // Might be 404 if user doesn't exist",
+                  "     pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Attempt GET User By ID (Admin Endpoint)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdToView}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdToView}}"
+              ]
+            },
+            "description": "Regular user trying to access the admin-specific GET user endpoint."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Follow User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/follow/{{userIdToFollow}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "follow",
+                "{{userIdToFollow}}"
+              ]
+            },
+            "description": "User `chiboub` follows user with ID `userIdToFollow`. Update variable."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 200 OK (or 400 if already following/self)\", function () {",
+                  "     pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Delete User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdToDelete}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdToDelete}}"
+              ]
+            },
+            "description": "Admin deleting a user. Update `userIdToDelete`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Admin] Status code is 204 No Content (or 404 Not Found)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Attempt Delete User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdToDelete}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdToDelete}}"
+              ]
+            },
+            "description": "Regular user attempting to delete another user."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ,{
+          "name": "User GET My Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ,{
+          "name": "Anon Attempt GET My Profile",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 401 Unauthorized\", function () {",
+                  "     pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "Anon GET All Recipes",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anon GET Recipe By ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes/{{recipeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes",
+                "{{recipeId}}"
+              ]
+            },
+            "description": "Requires valid `recipeId` variable."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 200 OK (or 404)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User POST Recipe",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"User Test Recipe {{$randomInt}}\",\n    \"description\": \"A delicious recipe created by the user.\",\n    \"category\": \"MAIN_COURSE\" \n    // Add ingredients if your DTO expects them\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Optional: Save created recipe ID",
+                  "if(pm.response.code === 201) {",
+                  "   try {",
+                  "      let jsonData = pm.response.json();",
+                  "      if (jsonData && jsonData.id) {",
+                  "          pm.collectionVariables.set(\"userRecipeId\", jsonData.id);",
+                  "          console.log(\"Saved userRecipeId: \" + jsonData.id);",
+                  "      }",
+                  "   } catch (e) { console.error('Error saving recipe ID:', e); }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin POST Recipe",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Admin Test Recipe {{$randomInt}}\",\n    \"description\": \"A recipe created by the admin.\",\n    \"category\": \"DESSERT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Admin] Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "// Optional: Save created recipe ID",
+                  "if(pm.response.code === 201) {",
+                  "   try {",
+                  "      let jsonData = pm.response.json();",
+                  "      if (jsonData && jsonData.id) {",
+                  "          pm.collectionVariables.set(\"adminRecipeId\", jsonData.id);",
+                  "           console.log(\"Saved adminRecipeId: \" + jsonData.id);",
+                  "      }",
+                  "   } catch (e) { console.error('Error saving recipe ID:', e); }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anon Attempt POST Recipe",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Anon Test Recipe {{$randomInt}}\",\n    \"description\": \"A recipe created anonymously.\",\n    \"category\": \"APPETIZER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 401 Unauthorized\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ,{
+          "name": "User DELETE Own Recipe",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes/{{userRecipeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes",
+                "{{userRecipeId}}"
+              ]
+            },
+            "description": "User deleting recipe they created in 'User POST Recipe' test. Ensure `userRecipeId` is set."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 204 No Content (or 404 if already deleted)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ,{
+          "name": "User Attempt DELETE Admin Recipe",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recipes/{{adminRecipeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recipes",
+                "{{adminRecipeId}}"
+              ]
+            },
+            "description": "User trying to delete recipe created by admin. Ensure `adminRecipeId` is set."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 403 Forbidden (or 404 if admin recipe deleted)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Anon GET Comments For Recipe",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comments/recipe/{{recipeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "recipe",
+                "{{recipeId}}"
+              ]
+            },
+            "description": "Requires valid `recipeId`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 200 OK (or 404 if recipe not found)\", function () {",
+                  "     pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User POST Comment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comments/add?recipeId={{recipeId}}&content=This+is+a+test+comment+from+user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "add"
+              ],
+              "query": [
+                {
+                  "key": "recipeId",
+                  "value": "{{recipeId}}"
+                },
+                {
+                  "key": "content",
+                  "value": "This is a test comment from user"
+                }
+              ]
+            },
+            "description": "Requires `recipeId`. Note: Uses query params based on controller."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 200 OK (or 400/404 if recipe invalid)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ratings",
+      "item": [
+        {
+          "name": "User POST Rating",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ratings/rate?recipeId={{recipeId}}&ratingValue=4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ratings",
+                "rate"
+              ],
+              "query": [
+                {
+                  "key": "recipeId",
+                  "value": "{{recipeId}}"
+                },
+                {
+                  "key": "ratingValue",
+                  "value": "4"
+                }
+              ]
+            },
+            "description": "Requires `recipeId`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 200 OK (or 400/404 if invalid)\", function () {",
+                  "     pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ingredients",
+      "item": [
+        {
+          "name": "Anon GET All Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ingredients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ingredients"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Anon] Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin POST Ingredient",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Ingredient {{$randomInt}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ingredients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ingredients"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[Admin] Status code is 200 OK (or similar success code)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299); ",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Attempt POST Ingredient",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"User Test Ingredient {{$randomInt}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ingredients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ingredients"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"[User] Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string",
+      "description": "Populated by 'Login Admin' request"
+    },
+    {
+      "key": "user_token",
+      "value": "",
+      "type": "string",
+      "description": "Populated by 'Login User' request"
+    },
+    {
+      "key": "recipeId",
+      "value": "1",
+      "type": "string",
+      "description": "UPDATE MANUALLY with a valid Recipe ID"
+    },
+    {
+      "key": "userId",
+      "value": "2",
+      "type": "string",
+      "description": "UPDATE MANUALLY with a valid User ID (e.g., for 'chiboub' user)"
+    },
+    {
+      "key": "userIdToView",
+      "value": "2",
+      "type": "string",
+      "description": "UPDATE MANUALLY - ID of user for admin to view/manage"
+    },
+    {
+      "key": "userIdToDelete",
+      "value": "3",
+      "type": "string",
+      "description": "UPDATE MANUALLY - ID of user for admin to delete"
+    },
+    {
+      "key": "userIdToFollow",
+      "value": "1",
+      "type": "string",
+      "description": "UPDATE MANUALLY - ID of user for 'chiboub' to follow (e.g., 'chedy' user ID)"
+    },
+    {
+      "key": "commentIdToDelete",
+      "value": "1",
+      "type": "string",
+      "description": "UPDATE MANUALLY - ID of comment to test delete"
+    },
+    {
+      "key": "ingredientId",
+      "value": "1",
+      "type": "string",
+      "description": "UPDATE MANUALLY - ID of an ingredient"
+    },
+    {
+      "key": "userRecipeId",
+      "value": "",
+      "type": "string",
+      "description": "Populated by 'User POST Recipe' test"
+    },
+    {
+      "key": "adminRecipeId",
+      "value": "",
+      "type": "string",
+      "description": "Populated by 'Admin POST Recipe' test"
+    }
+  ]
+}

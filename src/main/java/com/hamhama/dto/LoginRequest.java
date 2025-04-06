@@ -1,27 +1,16 @@
 package com.hamhama.dto;
 
+import jakarta.validation.constraints.NotBlank; // Add validation
 import lombok.Data;
 
 @Data
 public class LoginRequest {
-    private String username;
+
+    @NotBlank(message = "Username cannot be blank") // Add validation
+    private String username; // Can be username or email if you adapt UserDetailsService
+
+    @NotBlank(message = "Password cannot be blank") // Add validation
     private String password;
 
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    // Lombok generates getters/setters
 }
-
-

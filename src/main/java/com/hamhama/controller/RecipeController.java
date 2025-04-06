@@ -149,7 +149,7 @@ public class RecipeController {
      * POST /api/recipes/categories : Get recipes by multiple categories.
      * Using POST here because GET might have limitations with list parameters in URLs.
      */
-    @PostMapping("/categories")
+    @GetMapping("/categories")
     public ResponseEntity<List<RecipeResponseDTO>> getRecipesByCategories(@RequestBody List<RecipeCategory> categories) { // Return DTOs
         log.info("Request received to get recipes by categories: {}", categories);
         if (categories == null || categories.isEmpty()) {
