@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@CrossOrigin(origins = "http://localhost:4200", // Allow requests from Angular
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS}, // Allowed methods
+        allowedHeaders = "*", // Allow all headers
+        allowCredentials = "true", // Allow credentials (important for auth tokens)
+        maxAge = 3600) // Cache pre-flight response for 1 hour
 @RestController
 @RequestMapping("/api/recipes")
 public class RecipeController {

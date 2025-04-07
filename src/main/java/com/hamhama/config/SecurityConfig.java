@@ -57,6 +57,7 @@ public class SecurityConfig {
                         // ---- PUBLICLY ACCESSIBLE ENDPOINTS ----
                         .requestMatchers("/auth/**").permitAll() // Registration and Login
                         .requestMatchers("/profile-pictures/**").permitAll() // Static profile pictures (adjust path if needed)
+                        .requestMatchers("/recipe-pictures/**").permitAll() // Static profile pictures (adjust path if needed)
                         // Public Recipe Reads
                         .requestMatchers(HttpMethod.GET, "/api/recipes", "/api/recipes/*", "/api/recipes/search", "/api/recipes/category/*", "/api/recipes/*/nutrition").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/recipes/categories").permitAll() // Get by list of categories
