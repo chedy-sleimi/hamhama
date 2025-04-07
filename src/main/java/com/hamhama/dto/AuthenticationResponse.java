@@ -15,4 +15,5 @@ public class AuthenticationResponse {
     // private String refreshToken;
     private String username; // Include username for frontend convenience
     private java.util.List<String> roles; // Include roles for frontend convenience
+    private Long userId;
 }

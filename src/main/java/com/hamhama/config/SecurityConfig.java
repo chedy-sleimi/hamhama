@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod; // Import HttpMethod
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,6 +51,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
@@ -69,8 +71,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/ratings/recipe/*/average").permitAll()
 
                         // ---- ADMIN ONLY ENDPOINTS ----
+                        .requestMatchers(HttpMethod.GET, "/api/users/profile").authenticated()
                         // User Management (by Admin)
-                        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN") // List all users
                         .requestMatchers(HttpMethod.GET, "/api/users/*").hasRole("ADMIN") // Get specific user (admin view)
                         .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN") // Create user (admin only)
                         .requestMatchers(HttpMethod.DELETE, "/api/users/*").hasRole("ADMIN") // Delete any user

@@ -1,8 +1,11 @@
 package com.hamhama.controller;
 
+import com.hamhama.dto.CommentDTO; // Import DTO
 import com.hamhama.model.Comment;
 import com.hamhama.service.CommentService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,8 +33,8 @@ public class CommentController {
 
     // Get all comments for a specific recipe
     @GetMapping("/recipe/{recipeId}")
-    public ResponseEntity<List<Comment>> getCommentsByRecipe(@PathVariable Long recipeId) {
-        List<Comment> comments = commentService.getCommentsByRecipe(recipeId);
+    public ResponseEntity<List<CommentDTO>> getCommentsByRecipe(@PathVariable Long recipeId) { // Return DTO list
+        List<CommentDTO> comments = commentService.getCommentsByRecipe(recipeId);
         return ResponseEntity.ok(comments);
     }
 
@@ -42,6 +45,22 @@ public class CommentController {
             commentService.deleteComment(commentId);
             return ResponseEntity.ok("Comment deleted successfully");
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{commentId}")
+    public ResponseEntity<?> updateComment(
+            @PathVariable Long commentId,
+            @RequestParam String content
+    ) {
+        try {
+            Comment updatedDto = commentService.updateComment(commentId, content);
+            return ResponseEntity.ok(updatedDto);
+        } catch (RuntimeException e) {
+            if (e instanceof AccessDeniedException) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+            }
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
