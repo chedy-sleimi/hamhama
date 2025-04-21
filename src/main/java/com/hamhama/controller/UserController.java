@@ -1,67 +1,116 @@
 package com.hamhama.controller;
 
 import com.hamhama.dto.UserProfile;
-import com.hamhama.model.Recipe;
-import com.hamhama.model.User;
+import com.hamhama.model.Recipe; // Assuming you have a Recipe model
+import com.hamhama.model.User; // Assuming you have a User model
 import com.hamhama.service.UserService;
-import lombok.RequiredArgsConstructor; // Import RequiredArgsConstructor
+import io.swagger.v3.oas.annotations.Operation; // For describing endpoints
+import io.swagger.v3.oas.annotations.Parameter; // For describing parameters
+import io.swagger.v3.oas.annotations.media.Content; // For describing response/request body content
+import io.swagger.v3.oas.annotations.media.Schema; // For describing data structures (like DTOs or entities)
+import io.swagger.v3.oas.annotations.responses.ApiResponse; // For describing a single response
+import io.swagger.v3.oas.annotations.responses.ApiResponses; // For grouping multiple responses
+import io.swagger.v3.oas.annotations.security.SecurityRequirement; // To mark endpoints needing authentication
+import io.swagger.v3.oas.annotations.tags.Tag; // To group endpoints in Swagger UI
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-// Import HttpMethod if needed for finer grained SecurityConfig (already done there)
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication; // Keep if used in getCurrentUserFromController
+import org.springframework.security.core.context.SecurityContextHolder; // Keep if used in getCurrentUserFromController
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException; // For better error responses
-import org.springframework.http.HttpStatus; // Import HttpStatus
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Optional;
+// Remove unused imports if any after adding annotations
 
 @RestController
 @RequestMapping("/api/users")
-@RequiredArgsConstructor // Use Lombok for constructor injection
+@RequiredArgsConstructor
+@Tag(name = "User Management", description = "Endpoints for managing users, profiles, and interactions (follow, like, block).") // Groups endpoints in Swagger UI
+@SecurityRequirement(name = "bearerAuth") // Apply JWT security requirement to ALL endpoints in this controller
 public class UserController {
 
     private final UserService userService;
 
-    // --- Admin accessible endpoints (Assuming SecurityConfig handles auth) ---
+    // --- Admin accessible endpoints ---
 
+    @Operation(summary = "Get all users (Admin Only)", description = "Retrieves a list of all registered users. Requires ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of users",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = List.class))), // Schema could be more specific if using UserDTO
+            @ApiResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - User does not have ADMIN role")
+    })
     @GetMapping
     public List<User> getAllUsers() {
-        // Consider returning UserDTO instead of User entity
+        // Note: Consider returning List<UserDTO> instead of the User entity for security and clarity.
         return userService.getAllUsers();
     }
 
+    @Operation(summary = "Get user by ID (Admin Only)", description = "Retrieves details for a specific user by their ID. Requires ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User found",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = User.class))), // Consider UserDTO
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        // Consider returning UserDTO instead of User entity
+    public ResponseEntity<User> getUserById(
+            @Parameter(description = "ID of the user to retrieve") @PathVariable Long id) {
+        // Note: Consider returning UserDTO
         return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Create a new user (Admin Only)", description = "Creates a new user record. Password should be sent raw and will be encoded by the service. Requires ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User created successfully",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = User.class))), // Consider UserDTO
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid user data (e.g., duplicate username/email, missing fields)"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
     @PostMapping // Requires ADMIN role (as per SecurityConfig)
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        // Consider UserDTO here too. Ensure password encoding is handled in service.
+    public ResponseEntity<User> createUser(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "User object for the new user. Ensure password is provided raw.")
+            @RequestBody User user) {
+        // Note: Consider using a UserCreationDTO.
         try {
             User createdUser = userService.createUser(user);
-            // Consider returning UserDTO
+            // Note: Consider returning UserDTO
             return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         } catch (Exception e) {
-            // Handle potential exceptions like duplicate username/email if not caught earlier
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
+    @Operation(summary = "Update user details (Admin or Self)", description = "Updates details for a specific user. Admins can update any user. Regular users can only update their own profile (enforced in service).")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User updated successfully",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = User.class))), // Consider UserDTO
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid user data"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Not authorized to update this user"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @PutMapping("/{id}") // Requires ADMIN or self (handled in service)
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) { // Use UserUpdateDTO!
-        // IMPORTANT: Passing the raw User entity is risky. Use a DTO.
+    public ResponseEntity<User> updateUser(
+            @Parameter(description = "ID of the user to update") @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated user data. **Warning: Should use a DTO to prevent unintended updates (e.g., password, roles)!**")
+            @RequestBody User user) { // Use UserUpdateDTO!
         try {
             User updatedUser = userService.updateUser(id, user);
             // Consider returning UserDTO
             return ResponseEntity.ok(updatedUser);
-        } catch (RuntimeException e) { // Catch service exceptions (like not found, access denied)
+        } catch (RuntimeException e) {
             if (e instanceof org.springframework.security.access.AccessDeniedException) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
             } else if (e.getMessage() != null && e.getMessage().contains("not found")) {
@@ -72,97 +121,130 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Delete a user (Admin Only)", description = "Deletes a user record by ID. Requires ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "User deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @DeleteMapping("/{id}") // Requires ADMIN (as per SecurityConfig)
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(
+            @Parameter(description = "ID of the user to delete") @PathVariable Long id) {
         try {
             userService.deleteUser(id);
             return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) { // Catch not found etc.
+        } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
         }
     }
 
     // --- Authenticated user actions ---
 
-    // NOTE: The {followerId} in the path often represents the *actor*.
-    // Since the service now gets the actor from the context, we might not need it in the path.
-    // Option 1: Keep path as is, but ignore {followerId} in the method body.
-    // Option 2: Change path to /api/users/follow/{followingId} (simpler). Let's go with Option 2.
-
-    // @PostMapping("/{followerId}/follow") // Old path
-    @PostMapping("/follow/{followingId}") // New simpler path
-    public ResponseEntity<Void> followUser(@PathVariable Long followingId) {
+    @Operation(summary = "Follow another user", description = "Allows the authenticated user to follow another user specified by ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully followed user"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Cannot follow self, already following, user blocked, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "User to follow not found")
+    })
+    @PostMapping("/follow/{followingId}")
+    public ResponseEntity<Void> followUser(
+            @Parameter(description = "ID of the user to follow") @PathVariable Long followingId) {
         try {
-            // userService.followUser(followerId, followingId); // Old call
-            userService.followUser(followingId); // CORRECTED CALL
+            userService.followUser(followingId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    // @DeleteMapping("/{followerId}/unfollow") // Old path
-    @DeleteMapping("/unfollow/{followingId}") // New simpler path
-    public ResponseEntity<Void> unfollowUser(@PathVariable Long followingId) {
+    @Operation(summary = "Unfollow a user", description = "Allows the authenticated user to unfollow another user specified by ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully unfollowed user"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Cannot unfollow self, not currently following, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "User to unfollow not found")
+    })
+    @DeleteMapping("/unfollow/{followingId}")
+    public ResponseEntity<Void> unfollowUser(
+            @Parameter(description = "ID of the user to unfollow") @PathVariable Long followingId) {
         try {
-            // userService.unfollowUser(followerId, followingId); // Old call
-            userService.unfollowUser(followingId); // CORRECTED CALL
+            userService.unfollowUser(followingId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    // Like/Unlike actions also belong to the logged-in user acting on a recipe
-    // The {userId} path variable is redundant if the service uses the authenticated principal.
-    // Let's adjust the paths similarly.
-
-    // @PostMapping("/{userId}/like/{recipeId}") // Old path
-    @PostMapping("/like/{recipeId}") // New simpler path
-    public ResponseEntity<Void> likeRecipe(@PathVariable Long recipeId) {
+    @Operation(summary = "Like a recipe", description = "Allows the authenticated user to like a recipe specified by ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Recipe liked successfully"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Recipe already liked, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Recipe not found")
+    })
+    @PostMapping("/like/{recipeId}")
+    public ResponseEntity<Void> likeRecipe(
+            @Parameter(description = "ID of the recipe to like") @PathVariable Long recipeId) {
         try {
-            // userService.likeRecipe(userId, recipeId); // Old call
-            userService.likeRecipe(recipeId); // CORRECTED CALL
+            userService.likeRecipe(recipeId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    // @DeleteMapping("/{userId}/unlike/{recipeId}") // Old path
-    @DeleteMapping("/unlike/{recipeId}") // New simpler path
-    public ResponseEntity<Void> unlikeRecipe(@PathVariable Long recipeId) {
+    @Operation(summary = "Unlike a recipe", description = "Allows the authenticated user to remove their like from a recipe specified by ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Recipe unliked successfully"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Recipe not liked previously, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Recipe not found")
+    })
+    @DeleteMapping("/unlike/{recipeId}")
+    public ResponseEntity<Void> unlikeRecipe(
+            @Parameter(description = "ID of the recipe to unlike") @PathVariable Long recipeId) {
         try {
-            // userService.unlikeRecipe(userId, recipeId); // Old call
-            userService.unlikeRecipe(recipeId); // CORRECTED CALL
+            userService.unlikeRecipe(recipeId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    // Blocking/Unblocking: Logged-in user blocks another user.
-    // Path should reflect this: /api/users/block/{blockedUserId}
-
-    // @PostMapping("/{userId}/block/{blockedUserId}") // Old path
-    @PostMapping("/block/{blockedUserId}") // New simpler path
-    public ResponseEntity<String> blockUser(@PathVariable Long blockedUserId) {
+    @Operation(summary = "Block another user", description = "Allows the authenticated user to block another user, preventing interactions.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User blocked successfully",
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE)),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Cannot block self, user already blocked, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "User to block not found")
+    })
+    @PostMapping("/block/{blockedUserId}")
+    public ResponseEntity<String> blockUser(
+            @Parameter(description = "ID of the user to block") @PathVariable Long blockedUserId) {
         try {
-            // userService.blockUser(userId, blockedUserId); // Old call
-            userService.blockUser(blockedUserId); // CORRECTED CALL
+            userService.blockUser(blockedUserId);
             return ResponseEntity.ok("User blocked successfully");
         } catch (RuntimeException e) {
-            // Return specific status codes based on error if needed
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
-    // @DeleteMapping("/{userId}/unblock/{blockedUserId}") // Old path
-    @DeleteMapping("/unblock/{blockedUserId}") // New simpler path
-    public ResponseEntity<String> unblockUser(@PathVariable Long blockedUserId) {
+    @Operation(summary = "Unblock a user", description = "Allows the authenticated user to unblock a previously blocked user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User unblocked successfully",
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE)),
+            @ApiResponse(responseCode = "400", description = "Bad Request - User not currently blocked, etc."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "User to unblock not found")
+    })
+    @DeleteMapping("/unblock/{blockedUserId}")
+    public ResponseEntity<String> unblockUser(
+            @Parameter(description = "ID of the user to unblock") @PathVariable Long blockedUserId) {
         try {
-            // userService.unblockUser(userId, blockedUserId); // Old call
-            userService.unblockUser(blockedUserId); // CORRECTED CALL
+            userService.unblockUser(blockedUserId);
             return ResponseEntity.ok("User unblocked successfully");
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -170,174 +252,241 @@ public class UserController {
     }
 
     // --- Read operations for specific user data ---
-    // These often need context about *who* is requesting.
 
-    // Get list of users the given user *is* following (requires auth, maybe privacy check)
+    @Operation(summary = "Get following list", description = "Retrieves the list of users that the user specified by ID is following. Requires authentication. Access may be restricted based on the target user's privacy settings or blocking.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved following list",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = List.class))), // Consider List<UserDTO>
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Profile is private or user is blocked"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @GetMapping("/{id}/following")
-    public ResponseEntity<List<User>> getFollowing(@PathVariable Long id) {
-        // Add privacy checks if necessary - can the requester see this?
-        // For simplicity, assume authenticated users can see following list for accessible profiles.
+    public ResponseEntity<List<User>> getFollowing(
+            @Parameter(description = "ID of the user whose following list is requested") @PathVariable Long id) {
+        // Note: Service layer should ideally handle privacy/blocking checks. Documenting potential 403.
         try {
-            // Need a service method that potentially checks accessibility first
             User user = userService.findUserById(id); // Basic fetch
             // Consider returning List<UserDTO>
             return ResponseEntity.ok(user.getFollowing());
-        } catch (RuntimeException e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (RuntimeException e) { // Assuming service throws exception if user not found
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found", e);
+            // Or handle AccessDeniedException if service throws it
         }
     }
 
-    // Get list of followers of a user (requires auth, maybe privacy check)
+    @Operation(summary = "Get followers list", description = "Retrieves the list of users following the user specified by ID. Requires authentication. Access may be restricted based on the target user's privacy settings or blocking.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved followers list",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = List.class))), // Consider List<UserDTO>
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Profile is private or user is blocked"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @GetMapping("/{id}/followers")
-    public ResponseEntity<List<User>> getFollowers(@PathVariable Long id) {
+    public ResponseEntity<List<User>> getFollowers(
+            @Parameter(description = "ID of the user whose followers list is requested") @PathVariable Long id) {
         try {
-            // Service method already includes accessibility check
+            // Assuming userService.getFollowers includes accessibility checks
             List<User> followers = userService.getFollowers(id);
             // Consider returning List<UserDTO>
             return ResponseEntity.ok(followers);
-        } catch (RuntimeException e) { // Catch not found or access denied from service
+        } catch (RuntimeException e) {
             if (e instanceof org.springframework.security.access.AccessDeniedException) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
             }
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found or access denied", e);
         }
     }
 
-    // Get liked recipes for the logged-in user (or maybe any user if profile public?)
-    // Let's assume it's for the currently logged-in user for simplicity. Path: /api/users/liked-recipes
-    // @GetMapping("/{id}/liked-recipes") // Old path assumes ID passed in
-    @GetMapping("/liked-recipes") // New path: Get *my* liked recipes
-    public ResponseEntity<List<Recipe>> getMyLikedRecipes() { // Changed method name
+    @Operation(summary = "Get my liked recipes", description = "Retrieves the list of recipes liked by the currently authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved liked recipes",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = List.class))), // Consider List<RecipeResponseDTO>
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/liked-recipes")
+    public ResponseEntity<List<Recipe>> getMyLikedRecipes() {
         try {
-            User user = userService.getCurrentUser(); // Get current user from service helper
+            User user = userService.getCurrentUser();
             // Consider returning List<RecipeResponseDTO>
             return ResponseEntity.ok(user.getLikedRecipes());
         } catch (RuntimeException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e); // If not authenticated
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated", e);
         }
     }
 
-    // Get *own* profile details. Path: /api/users/profile
-    // @GetMapping("/{id}/profile") // Old: Get profile by ID
-    @GetMapping("/profile") // New: Get *my* profile
-    public ResponseEntity<UserProfile> getMyProfile() { // Changed method name
+    @Operation(summary = "Get my profile", description = "Retrieves the profile details of the currently authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved profile",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = UserProfile.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfile> getMyProfile() {
         try {
             User user = userService.getCurrentUser();
-            UserProfile profile = userService.getUserProfile(user.getId()); // Call service with own ID
+            UserProfile profile = userService.getUserProfile(user.getId());
             return ResponseEntity.ok(profile);
         } catch (RuntimeException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated", e);
         }
     }
 
-    // Get blocked users list for the *logged-in user*. Path: /api/users/blocked-users
-    // @GetMapping("/{userId}/blocked-users") // Old path
-    @GetMapping("/blocked-users") // New path
-    public ResponseEntity<List<User>> getMyBlockedUsers() { // Changed method name
+    @Operation(summary = "Get my blocked users", description = "Retrieves the list of users blocked by the currently authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved blocked users list",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = List.class))), // Consider List<UserDTO>
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/blocked-users")
+    public ResponseEntity<List<User>> getMyBlockedUsers() {
         try {
             User user = userService.getCurrentUser();
-            List<User> blockedUsers = userService.getBlockedUsers(user.getId()); // Call service with own ID
+            List<User> blockedUsers = userService.getBlockedUsers(user.getId());
             // Consider returning List<UserDTO>
             return ResponseEntity.ok(blockedUsers);
-        } catch (RuntimeException e) { // Catch AccessDenied if service checks fail (shouldn't for self)
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated", e);
         }
     }
 
-    // Update *own* privacy setting. Path: /api/users/privacy
-    // @PutMapping("/{userId}/privacy") // Old path
-    @PutMapping("/privacy") // New path
-    public ResponseEntity<String> updateMyPrivacySetting(@RequestParam Boolean isPrivate) { // Changed method name
+    @Operation(summary = "Update my privacy setting", description = "Updates the privacy setting (public/private) for the currently authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Privacy setting updated successfully",
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE)),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid value provided"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PutMapping("/privacy")
+    public ResponseEntity<String> updateMyPrivacySetting(
+            @Parameter(description = "'true' to set profile to private, 'false' for public", required = true)
+            @RequestParam Boolean isPrivate) {
         try {
             User user = userService.getCurrentUser();
-            userService.updatePrivacySetting(user.getId(), isPrivate); // Call service with own ID
+            userService.updatePrivacySetting(user.getId(), isPrivate);
             return ResponseEntity.ok("Privacy setting updated successfully");
-        } catch (RuntimeException e) {
+        } catch (RuntimeException e) { // Catch Unauthorized from getCurrentUser
+            if (e.getMessage() != null && e.getMessage().contains("User not authenticated")) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+            }
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    // Get *own* privacy setting. Path: /api/users/privacy
-    // @GetMapping("/{userId}/privacy") // Old path
-    @GetMapping("/privacy") // New path
-    public ResponseEntity<Boolean> getMyPrivacySetting() { // Changed method name
+    @Operation(summary = "Get my privacy setting", description = "Retrieves the current privacy setting (true=private, false=public) for the authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved privacy setting",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = Boolean.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/privacy")
+    public ResponseEntity<Boolean> getMyPrivacySetting() {
         try {
             User user = userService.getCurrentUser();
-            Boolean isPrivate = userService.getPrivacySetting(user.getId()); // Call service with own ID
+            Boolean isPrivate = userService.getPrivacySetting(user.getId());
             return ResponseEntity.ok(isPrivate);
         } catch (RuntimeException e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e); // Or UNAUTHORIZED
+            if (e.getMessage() != null && e.getMessage().contains("User not authenticated")) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+            }
+            // Assuming service might throw if setting not found for a valid user (unlikely but possible)
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not retrieve privacy setting", e);
         }
     }
 
-    // Get *another* user's profile (respects privacy). Path: /api/users/{profileUserId}/profile
-    // @GetMapping("/{profileUserId}/profile/{requestingUserId}") // Old path included requester
-    @GetMapping("/{profileUserId}/profile") // New path, requester comes from context
-    public ResponseEntity<UserProfile> getPublicUserProfile(@PathVariable Long profileUserId) { // Renamed method
+    @Operation(summary = "Get another user's profile", description = "Retrieves the profile of a user specified by ID. Access is subject to the target user's privacy settings and whether the requesting user (if authenticated) is blocked.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved user profile",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = UserProfile.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Profile is private or the user is blocked"),
+            @ApiResponse(responseCode = "404", description = "User profile not found")
+            // 401 is implicitly handled by the class-level security requirement if checks require auth
+    })
+    @GetMapping("/{profileUserId}/profile")
+    public ResponseEntity<UserProfile> getPublicUserProfile(
+            @Parameter(description = "ID of the user whose profile is being requested") @PathVariable Long profileUserId) {
+        Long requestingUserId = null;
         try {
-            User requestingUser = userService.getCurrentUser(); // Get optional current user
-            Long requestingUserId = (requestingUser != null) ? requestingUser.getId() : null;
+            // Try to get the current user ID. If it fails, requestingUserId remains null (anonymous).
+            requestingUserId = userService.getCurrentUser().getId();
+        } catch (RuntimeException ex) {
+            // Ignore exception here, signifies anonymous user for the accessibility check.
+            // Log the exception if necessary for debugging non-auth errors.
+            // log.debug("Could not get current user, proceeding as anonymous for profile access check.", ex);
+        }
 
+        try {
             // Check accessibility *before* fetching the full profile DTO
             if (!userService.isProfileAccessible(profileUserId, requestingUserId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Profile is private or user is blocked.");
+                // Use FORBIDDEN (403) if access denied due to privacy/blocking
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
             UserProfile profile = userService.getUserProfile(profileUserId);
             return ResponseEntity.ok(profile);
         } catch (RuntimeException e) {
-            // Catch specific exceptions if needed (e.g., user not found)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User profile not found or inaccessible.", e);
+            // Catch user not found from getUserProfile or isProfileAccessible if it throws for bad ID
+            // Log the specific exception if needed
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User profile not found", e);
         }
     }
 
-    // Update *own* profile picture. Path: /api/users/profile-picture
-    // @PutMapping(value = "/{id}/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // Old Path
-    @PutMapping(value = "/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // New Path
-    public ResponseEntity<String> updateMyProfilePicture(@RequestParam("file") MultipartFile file) { // Changed method name
+    @Operation(summary = "Update my profile picture", description = "Updates the profile picture for the currently authenticated user. Requires sending image data as multipart/form-data.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profile picture updated successfully",
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE)),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid file type, size limit exceeded, or other processing error."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PutMapping(value = "/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> updateMyProfilePicture(
+            @Parameter(description = "The image file to upload (JPEG/PNG recommended)", required = true,
+                    content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
+            @RequestParam("file") MultipartFile file) {
         try {
             User user = userService.getCurrentUser();
-            userService.updateProfilePicture(user.getId(), file); // Call service with own ID
+            userService.updateProfilePicture(user.getId(), file);
             return ResponseEntity.ok("Profile picture updated successfully");
         } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("User not authenticated")) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+            }
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
-    // Delete *own* profile picture. Path: /api/users/profile-picture
-    // @DeleteMapping("/{id}/profile-picture") // Old path
-    @DeleteMapping("/profile-picture") // New path
-    public ResponseEntity<String> deleteMyProfilePicture() { // Changed method name
+
+    @Operation(summary = "Delete my profile picture", description = "Deletes the profile picture for the currently authenticated user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profile picture deleted successfully",
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE)),
+            @ApiResponse(responseCode = "400", description = "Bad Request - No profile picture to delete or other error."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @DeleteMapping("/profile-picture")
+    public ResponseEntity<String> deleteMyProfilePicture() {
         try {
             User user = userService.getCurrentUser();
-            userService.deleteProfilePicture(user.getId()); // Call service with own ID
+            userService.deleteProfilePicture(user.getId());
             return ResponseEntity.ok("Profile picture deleted successfully");
         } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("User not authenticated")) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage(), e);
+            }
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
-    // We need getCurrentUserOptional() in UserService for the public profile check
-    // Add this helper to UserService:
-    /*
-    @Transactional(readOnly = true)
-    public Optional<User> getCurrentUserOptional() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            return Optional.empty();
-        }
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof User) {
-             return Optional.of((User) principal);
-        } else if (principal instanceof String) {
-            // If principal is just the username string after initial load
-            return userRepository.findByUsername((String) principal);
-        }
-        return Optional.empty();
-    }
-    */
-    // Also need getCurrentUser() in UserController if not using the one from service
-    private User getCurrentUserFromController() { // Example if needed directly in controller
+    // Example helper if needed directly in controller (kept private)
+    private User getCurrentUserFromController() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof User)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
