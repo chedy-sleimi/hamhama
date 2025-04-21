@@ -81,25 +81,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/comments/recipe/**").permitAll()
                         // Public Rating Reads
                         .requestMatchers(HttpMethod.GET, "/ratings/recipe/*/average").permitAll()
-
-                        // ---- ADMIN ONLY ENDPOINTS ----
-                        // User Management (by Admin)
-                        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN") // Get all users - Added this based on UserController
-                        .requestMatchers(HttpMethod.GET, "/api/users/*").hasRole("ADMIN") // Get specific user (admin view) - Ensure it doesn't clash with authenticated /api/users/** below if ID is numeric
-                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN") // Create user (admin only)
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/*").hasRole("ADMIN") // Delete any user - Ensure it doesn't clash with authenticated /api/users/** below if ID is numeric
-                        // Ingredient Management (by Admin)
-                        .requestMatchers(HttpMethod.POST, "/api/ingredients").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/ingredients/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/ingredients/**").hasRole("ADMIN")
-
-                        // ---- AUTHENTICATED USER ENDPOINTS (USER or ADMIN) ----
-                        // Recipe Management (Authenticated - own or by admin)
-                        .requestMatchers(HttpMethod.POST, "/api/recipes").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/recipes/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/recipes/**").authenticated()
-                        // Comment Management (Authenticated - own or by admin)
-                        .requestMatchers("/comments/add", "/comments/delete/**").authenticated()
                         // Rating Management (Authenticated - own or by admin)
                         .requestMatchers("/ratings/rate", "/ratings/delete").authenticated()
                         // Ingredient Features (Authenticated)
@@ -123,7 +104,24 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/*/followers").authenticated() // Get someone's followers list (privacy checked in service/controller)
                         .requestMatchers(HttpMethod.GET, "/api/users/*/profile").authenticated() // Get someone's public profile (privacy checked in service/controller)
                         .requestMatchers(HttpMethod.PUT, "/api/users/*").authenticated() // General update (for self, if ID matches - or admin handled by role check earlier) - place carefully
+                        // ---- ADMIN ONLY ENDPOINTS ----
+                        // User Management (by Admin)
+                        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN") // Get all users - Added this based on UserController
+                        .requestMatchers(HttpMethod.GET, "/api/users/*").hasRole("ADMIN") // Get specific user (admin view) - Ensure it doesn't clash with authenticated /api/users/** below if ID is numeric
+                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN") // Create user (admin only)
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/*").hasRole("ADMIN") // Delete any user - Ensure it doesn't clash with authenticated /api/users/** below if ID is numeric
+                        // Ingredient Management (by Admin)
+                        .requestMatchers(HttpMethod.POST, "/api/ingredients").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/ingredients/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/ingredients/**").hasRole("ADMIN")
 
+                        // ---- AUTHENTICATED USER ENDPOINTS (USER or ADMIN) ----
+                        // Recipe Management (Authenticated - own or by admin)
+                        .requestMatchers(HttpMethod.POST, "/api/recipes").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/recipes/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/recipes/**").authenticated()
+                        // Comment Management (Authenticated - own or by admin)
+                        .requestMatchers("/comments/add", "/comments/delete/**").authenticated()
                         // ---- FALLBACK - All other unmatached requests require authentication ----
                         .anyRequest().authenticated()
                 )
